@@ -26,7 +26,7 @@ class PatientFilters(BaseModel):
     screening_type: Optional[str] = None
     min_overdue_days: Optional[int] = Field(None, ge=0)
     max_overdue_days: Optional[int] = Field(None, ge=0)
-    priority_level: Optional[str] = Field(None, regex="^(low|medium|high|urgent)$")
+    priority_level: Optional[str] = Field(None, pattern="^(low|medium|high|urgent)$")
     limit: int = Field(50, ge=1, le=100)
 
 
@@ -36,7 +36,7 @@ class CareGapWorkflowRequest(BaseModel):
 
 
 class AgentDirectRequest(BaseModel):
-    agent_type: str = Field(..., regex="^(data_analyst|communication_specialist|care_manager)$")
+    agent_type: str = Field(..., pattern="^(data_analyst|communication_specialist|care_manager)$")
     message: str = Field(..., description="Message to send to the agent")
     context: Dict[str, Any] = Field(default_factory=dict)
 
@@ -192,8 +192,8 @@ async def start_care_gap_workflow(
                     "execution_time_seconds": result.get("execution_time_seconds"),
                     "workflow_status": execution_result.get("status"),
                     "steps_completed": execution_result.get("steps_completed", 0),
-                    "patients_analyzed": self._extract_patients_count(execution_result),
-                    "communications_created": self._extract_communications_count(execution_result)
+                    "patients_analyzed": _extract_patients_count(execution_result),
+                    "communications_created": _extract_communications_count(execution_result)
                 },
                 "detailed_results": execution_result
             }
@@ -359,26 +359,29 @@ async def analyze_patients(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class PatientCommunicationRequest(BaseModel):
+    patient_ids: List[int]
+    priority_level: str = Field("medium", pattern="^(low|medium|high|critical)$")
+
 @router.post("/agents/communicate")
 async def create_patient_communications(
-    patient_ids: List[int],
-    priority_level: str = Field("medium", regex="^(low|medium|high|critical)$"),
+    request: PatientCommunicationRequest,
     service: AutoGenWorkflowService = Depends(get_workflow_service)
 ):
     """Create communications for specific patients using CommunicationSpecialist agent"""
     try:
         context = {
-            "patient_ids": patient_ids,
-            "priority_level": priority_level.upper(),
+            "patient_ids": request.patient_ids,
+            "priority_level": request.priority_level.upper(),
             "communication_type": "batch_outreach"
         }
         
         # For now, return a structured response indicating what would be done
         return {
             "status": "success",
-            "message": f"Communication creation initiated for {len(patient_ids)} patients",
-            "patient_count": len(patient_ids),
-            "priority_level": priority_level,
+            "message": f"Communication creation initiated for {len(request.patient_ids)} patients",
+            "patient_count": len(request.patient_ids),
+            "priority_level": request.priority_level,
             "estimated_completion_time": "3-5 minutes",
             "next_steps": [
                 "Messages personalized based on patient demographics and history",

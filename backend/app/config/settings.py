@@ -28,9 +28,13 @@ class Settings(BaseSettings):
     # CORS settings
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
+        "http://localhost:4200",  # Angular development server
         "http://localhost:8000",
         "http://127.0.0.1:3000",
-        "http://127.0.0.1:8000"
+        "http://127.0.0.1:4200",  # Angular development server
+        "http://127.0.0.1:8000",
+        "http://0.0.0.0:4200",    # Allow access from any interface
+        "*"  # Allow all origins for development (remove in production)
     ]
     
     # API settings

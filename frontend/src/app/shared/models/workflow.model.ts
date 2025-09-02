@@ -10,18 +10,7 @@ export interface WorkflowStatus {
   errors?: string[];
 }
 
-export interface AgentStatus {
-  agent_name: string;
-  status: 'idle' | 'busy' | 'error' | 'offline';
-  total_requests: number;
-  successful_requests: number;
-  failed_requests: number;
-  success_rate: number;
-  error_rate: number;
-  average_response_time: number;
-  last_activity?: string;
-  uptime_hours: number;
-}
+// AgentStatus moved to patient.model.ts to avoid conflicts
 
 export interface CampaignConfig {
   campaign_name: string;

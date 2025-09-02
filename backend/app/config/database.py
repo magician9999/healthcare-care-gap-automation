@@ -29,6 +29,9 @@ def get_database():
     finally:
         db.close()
 
+# Alias for compatibility
+get_db = get_database
+
 def create_tables():
     """Create all tables"""
     Base.metadata.create_all(bind=engine)

@@ -404,7 +404,13 @@ class CareManagerAgent(BaseHealthcareAgent):
         prioritized_patients = context.get("prioritized_patients", [])
         
         if not prioritized_patients:
-            raise Exception("No prioritized patients provided for communication creation")
+            return {
+                "communications": [],
+                "total_created": 0,
+                "creation_timestamp": datetime.utcnow().isoformat(),
+                "ready_to_send": 0,
+                "message": "No prioritized patients available for communication creation"
+            }
         
         communications = []
         

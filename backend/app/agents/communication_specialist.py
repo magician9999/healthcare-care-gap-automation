@@ -150,11 +150,19 @@ class CommunicationSpecialistAgent(BaseHealthcareAgent):
             screening_types = context.get("screening_types", [])
             
             if not patient_id:
-                return {
-                    "status": "error",
-                    "message": "Patient ID required for personalized outreach",
-                    "agent": self.name
-                }
+                # Check if this is a batch communication request (no patient_id provided)
+                batch_patients = context.get("prioritized_patients", [])
+                if not batch_patients:
+                    return {
+                        "status": "success",
+                        "message": "No patients available for outreach creation", 
+                        "communications": [],
+                        "total_created": 0,
+                        "agent": self.name
+                    }
+                else:
+                    # Handle batch communication
+                    return await self._create_batch_communications(context)
             
             # Get detailed patient information
             patient_details = await self.mcp_client.get_patient_details(patient_id)

@@ -25,7 +25,7 @@ export class PatientListComponent implements OnInit {
     setTimeout(() => {
       this.patients = [
         {
-          patient_id: 1,
+          id: 1,
           name: 'John Smith',
           age: 65,
           email: 'john.smith@email.com',
@@ -34,14 +34,18 @@ export class PatientListComponent implements OnInit {
           priority_level: 'HIGH',
           total_care_gaps: 2,
           open_care_gaps: 2,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           overdue_care_gaps: [
             { 
+              id: 1,
               care_gap_id: 1,
               screening_type: 'Mammography', 
               overdue_days: 45,
               priority_level: 'high'
             },
             { 
+              id: 2,
               care_gap_id: 2,
               screening_type: 'Colonoscopy', 
               overdue_days: 30,
@@ -50,7 +54,7 @@ export class PatientListComponent implements OnInit {
           ]
         },
         {
-          patient_id: 2,
+          id: 2,
           name: 'Mary Johnson',
           age: 58,
           email: 'mary.johnson@email.com',
@@ -59,8 +63,11 @@ export class PatientListComponent implements OnInit {
           priority_level: 'MEDIUM',
           total_care_gaps: 1,
           open_care_gaps: 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           overdue_care_gaps: [
             { 
+              id: 3,
               care_gap_id: 3,
               screening_type: 'Annual Wellness Visit', 
               overdue_days: 20,

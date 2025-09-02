@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ApiService } from '../../services/api.service';
-import { AgentStatus } from '../../models/workflow.model';
+import { AgentStatus } from '../../models/patient.model';
 
 @Component({
   selector: 'app-header',

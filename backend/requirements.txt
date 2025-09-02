@@ -1,6 +1,6 @@
 alembic==1.12.1
 annotated-types==0.7.0
-anyio==4.10.0
+anyio==3.7.1
 appnope==0.1.4
 asttokens==3.0.0
 attrs==25.3.0

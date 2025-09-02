@@ -1,10 +1,12 @@
 from fastapi import APIRouter
 from .agents import router as agents_router
+from .patients import router as patients_router
 
 router = APIRouter()
 
-# Include agents router
+# Include routers
 router.include_router(agents_router)
+router.include_router(patients_router)
 
 # API status endpoint
 @router.get("/status")

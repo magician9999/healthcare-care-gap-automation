@@ -2,8 +2,38 @@
   
   <!-- Dashboard Header -->
   <div class="dashboard-header">
-    <h2 class="dashboard-title">System Overview</h2>
-    <p class="dashboard-subtitle">Real-time healthcare care-gap automation monitoring</p>
+    <h2 class="dashboard-title">Healthcare Care Gap Automation</h2>
+    <p class="dashboard-subtitle">Real-time system monitoring and agent orchestration</p>
+  </div>
+
+  <!-- Real-time Agent Status -->
+  <div class="agent-status-section" *ngIf="agentStatuses.length > 0">
+    <h3>Agent Status</h3>
+    <div class="agent-cards">
+      <mat-card class="agent-card" *ngFor="let agent of agentStatuses" [class]="getAgentStatusClass(agent)">
+        <mat-card-content>
+          <div class="agent-header">
+            <h4>{{agent.agent_name}}</h4>
+            <span class="status-badge" [class]="'status-' + agent.status">{{agent.status | titlecase}}</span>
+          </div>
+          <p class="current-task" *ngIf="agent.current_task">{{agent.current_task}}</p>
+          <div class="agent-metrics" *ngIf="agent.metrics">
+            <div class="metric">
+              <span class="label">Tasks Completed:</span>
+              <span class="value">{{agent.metrics.tasks_completed}}</span>
+            </div>
+            <div class="metric">
+              <span class="label">Avg Response:</span>
+              <span class="value">{{agent.metrics.average_response_time | number:'1.1-1'}}s</span>
+            </div>
+            <div class="metric">
+              <span class="label">Success Rate:</span>
+              <span class="value">{{agent.metrics.success_rate | number:'1.0-0'}}%</span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
   </div>
 
   <!-- Dashboard Cards -->
@@ -14,7 +44,7 @@
           <mat-icon class="card-icon">account_tree</mat-icon>
         </div>
         <div class="card-body">
-          <h3 class="card-value">{{dashboardData.activeWorkflows}}</h3>
+          <h3 class="card-value">{{activeWorkflows}}</h3>
           <h4 class="card-title">Active Workflows</h4>
           <p class="card-subtitle">Currently processing</p>
         </div>
@@ -27,9 +57,9 @@
           <mat-icon class="card-icon">people</mat-icon>
         </div>
         <div class="card-body">
-          <h3 class="card-value">{{dashboardData.patientsProcessed}}</h3>
-          <h4 class="card-title">Patients Processed Today</h4>
-          <p class="card-subtitle">Including priority cases</p>
+          <h3 class="card-value">{{dashboardData.total_patients}}</h3>
+          <h4 class="card-title">Total Patients</h4>
+          <p class="card-subtitle">In system database</p>
         </div>
       </mat-card-content>
     </mat-card>
@@ -40,8 +70,8 @@
           <mat-icon class="card-icon">warning</mat-icon>
         </div>
         <div class="card-body">
-          <h3 class="card-value">{{dashboardData.pendingCareGaps}}</h3>
-          <h4 class="card-title">Pending Care Gaps</h4>
+          <h3 class="card-value">{{dashboardData.total_open_care_gaps}}</h3>
+          <h4 class="card-title">Open Care Gaps</h4>
           <p class="card-subtitle">Requiring attention</p>
         </div>
       </mat-card-content>
@@ -50,33 +80,100 @@
     <mat-card class="dashboard-card">
       <mat-card-content>
         <div class="card-header">
-          <mat-icon class="card-icon">health_and_safety</mat-icon>
+          <mat-icon class="card-icon" [class]="getSystemHealthClass()">health_and_safety</mat-icon>
         </div>
         <div class="card-body">
-          <h3 class="card-value">{{dashboardData.systemHealth}}</h3>
+          <h3 class="card-value">{{dashboardData.system_health_percentage | number:'1.1-1'}}%</h3>
           <h4 class="card-title">System Health</h4>
-          <p class="card-subtitle">All agents operational</p>
+          <p class="card-subtitle">All systems operational</p>
         </div>
       </mat-card-content>
     </mat-card>
   </div>
 
+  <!-- Priority Statistics -->
+  <div class="priority-section">
+    <h3>Priority Care Gaps</h3>
+    <div class="priority-cards">
+      <mat-card class="priority-card urgent">
+        <mat-card-content>
+          <div class="priority-header">
+            <mat-icon>priority_high</mat-icon>
+            <span>Urgent</span>
+          </div>
+          <div class="priority-value">{{dashboardData.urgent_care_gaps}}</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="priority-card high">
+        <mat-card-content>
+          <div class="priority-header">
+            <mat-icon>trending_up</mat-icon>
+            <span>High Priority</span>
+          </div>
+          <div class="priority-value">{{dashboardData.high_priority_care_gaps}}</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="priority-card patients">
+        <mat-card-content>
+          <div class="priority-header">
+            <mat-icon>people_outline</mat-icon>
+            <span>Patients with Open Gaps</span>
+          </div>
+          <div class="priority-value">{{dashboardData.patients_with_open_gaps}}</div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+
   <!-- Quick Actions -->
   <div class="quick-actions">
-    <h3>Quick Actions</h3>
+    <h3>Workflow Actions</h3>
     <div class="action-buttons">
-      <button mat-raised-button color="primary">
+      <button mat-raised-button color="primary" (click)="startCareGapWorkflow()">
         <mat-icon>campaign</mat-icon>
-        Start Campaign
+        Start Care Gap Workflow
       </button>
-      <button mat-raised-button color="accent">
-        <mat-icon>people</mat-icon>
-        View Patients
+      <button mat-raised-button color="warn" (click)="startUrgentWorkflow()">
+        <mat-icon>emergency</mat-icon>
+        Process Urgent Patients
       </button>
-      <button mat-stroked-button>
+      <button mat-stroked-button (click)="analyzePatients()">
         <mat-icon>analytics</mat-icon>
-        View Analytics
+        Analyze Patient Data
       </button>
+      <button mat-stroked-button (click)="refreshData()">
+        <mat-icon>refresh</mat-icon>
+        Refresh Data
+      </button>
+    </div>
+  </div>
+
+  <!-- System Health Details -->
+  <div class="system-health" *ngIf="systemHealth">
+    <h3>System Health Details</h3>
+    <div class="health-grid">
+      <div class="health-item">
+        <span class="health-label">Database:</span>
+        <span class="health-status" [class]="'status-' + systemHealth.database_status">
+          {{systemHealth.database_status | titlecase}}
+        </span>
+      </div>
+      <div class="health-item">
+        <span class="health-label">Agent Service:</span>
+        <span class="health-status" [class]="'status-' + systemHealth.agent_service_status">
+          {{systemHealth.agent_service_status | titlecase}}
+        </span>
+      </div>
+      <div class="health-item">
+        <span class="health-label">API Response Time:</span>
+        <span class="health-value">{{systemHealth.api_response_time | number:'1.0-0'}}ms</span>
+      </div>
+      <div class="health-item">
+        <span class="health-label">Last Updated:</span>
+        <span class="health-value">{{systemHealth.last_updated | date:'short'}}</span>
+      </div>
     </div>
   </div>
 

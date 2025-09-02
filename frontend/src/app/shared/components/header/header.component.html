@@ -1,0 +1,43 @@
+<mat-toolbar class="app-header" color="primary">
+  <div class="header-content">
+    
+    <!-- Left Section: Title -->
+    <div class="header-left">
+      <h1 class="page-title">{{routeTitle}}</h1>
+    </div>
+
+    <!-- Right Section: System Health and Time -->
+    <div class="header-right">
+      
+      <!-- System Health Indicator -->
+      <div class="system-health">
+        <mat-icon class="health-icon">check_circle</mat-icon>
+        <span class="health-text">System Healthy</span>
+      </div>
+
+      <!-- Current Time -->
+      <div class="time-display">
+        <span class="current-time">{{currentTime}}</span>
+        <span class="current-date">{{getCurrentDate()}}</span>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button 
+          mat-icon-button 
+          class="action-btn"
+          matTooltip="Refresh Data"
+          (click)="refreshData()">
+          <mat-icon>refresh</mat-icon>
+        </button>
+        
+        <button 
+          mat-icon-button 
+          class="action-btn"
+          matTooltip="Settings">
+          <mat-icon>settings</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+</mat-toolbar>

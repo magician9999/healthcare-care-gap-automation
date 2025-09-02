@@ -1,0 +1,159 @@
+.navigation-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #1e3a8a;
+  color: white;
+}
+
+.nav-header {
+  padding: 20px 16px;
+  background-color: #1e40af;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-icon {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+  color: #60a5fa;
+}
+
+.title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+}
+
+.app-subtitle {
+  font-size: 12px;
+  color: #93c5fd;
+  font-weight: 400;
+}
+
+.nav-menu {
+  flex: 1;
+  padding: 16px 0;
+}
+
+.nav-list {
+  padding: 0;
+}
+
+.nav-item {
+  height: 64px;
+  cursor: pointer;
+  margin: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  &.active {
+    background-color: #3b82f6;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    
+    .active-icon {
+      color: #fbbf24;
+    }
+  }
+}
+
+.nav-item-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+}
+
+.nav-description {
+  font-size: 11px;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.nav-badge {
+  margin-left: auto;
+}
+
+// System Status Section
+.system-status {
+  padding: 16px;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.status-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e2e8f0;
+}
+
+.status-indicators {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  
+  &.online {
+    background-color: #10b981;
+    box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
+  }
+  
+  &.warning {
+    background-color: #f59e0b;
+    box-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
+  }
+  
+  &.error {
+    background-color: #ef4444;
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+  }
+}
+
+.status-label {
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+// Material overrides
+::ng-deep .mat-list-item-content {
+  padding: 0 !important;
+}
+
+::ng-deep .mat-divider {
+  border-color: rgba(255, 255, 255, 0.1);
+}

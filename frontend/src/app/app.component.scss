@@ -1,0 +1,31 @@
+.app-container {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.sidenav-container {
+  height: 100%;
+  width: 100%;
+}
+
+.app-sidenav {
+  width: 280px;
+  background-color: #1e3a8a;
+  color: white;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f5f7fa;
+}
+
+.content-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background-color: #f5f7fa;
+}

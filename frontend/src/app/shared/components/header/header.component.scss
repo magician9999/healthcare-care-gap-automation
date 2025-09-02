@@ -1,0 +1,186 @@
+.app-header {
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-content {
+  width: 100%;
+  padding: 0 16px;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: white;
+}
+
+// Agent Status Section
+.agent-status-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.agent-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+.agent-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+
+  &.status-idle {
+    color: #10b981; // Green
+  }
+  
+  &.status-busy {
+    color: #f59e0b; // Yellow
+    animation: pulse 2s infinite;
+  }
+  
+  &.status-error {
+    color: #ef4444; // Red
+  }
+  
+  &.status-offline {
+    color: #6b7280; // Gray
+  }
+}
+
+.agent-name {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+// System Health Section
+.system-health {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+.health-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+
+  &.health-healthy {
+    color: #10b981;
+  }
+  
+  &.health-busy {
+    color: #f59e0b;
+    animation: spin 2s linear infinite;
+  }
+  
+  &.health-error {
+    color: #ef4444;
+  }
+  
+  &.health-loading {
+    color: #6b7280;
+    animation: pulse 1s infinite;
+  }
+}
+
+.health-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+// Time Display
+.time-display {
+  text-align: right;
+}
+
+.current-time {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.current-date {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+// Action Buttons
+.action-buttons {
+  display: flex;
+  align-items: center;
+}
+
+.action-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+// Animations
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .agent-status-section {
+    display: none;
+  }
+  
+  .time-display {
+    display: none;
+  }
+  
+  .page-title {
+    font-size: 16px;
+  }
+}

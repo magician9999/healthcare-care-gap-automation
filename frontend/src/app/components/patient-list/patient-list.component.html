@@ -1,0 +1,73 @@
+<div class="patient-list-container">
+
+  <!-- Header Section -->
+  <div class="list-header">
+    <h2 class="page-title">Patient Management</h2>
+    <p class="page-subtitle">Manage patient care gaps and priorities</p>
+  </div>
+
+  <!-- Filter and Actions Bar -->
+  <div class="filter-bar">
+    <div class="search-field">
+      <input type="text" placeholder="Search patients..." class="search-input">
+    </div>
+    
+    <div class="action-buttons">
+      <button mat-raised-button color="primary">
+        <mat-icon>add</mat-icon>
+        Add Patient
+      </button>
+      <button mat-stroked-button>
+        <mat-icon>file_download</mat-icon>
+        Export
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-container" *ngIf="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Loading patients...</p>
+  </div>
+
+  <!-- Patient Cards Grid -->
+  <div class="patients-grid" *ngIf="!loading">
+    <mat-card class="patient-card" *ngFor="let patient of patients">
+      <mat-card-header>
+        <mat-card-title>{{patient.name}}</mat-card-title>
+        <mat-card-subtitle>ID: {{patient.patient_id}} | Age: {{patient.age}}</mat-card-subtitle>
+      </mat-card-header>
+      
+      <mat-card-content>
+        <div class="priority-section">
+          <span class="priority-label">Priority Score:</span>
+          <span class="priority-score" 
+                [class.high-priority]="patient.priority_level === 'HIGH'"
+                [class.medium-priority]="patient.priority_level === 'MEDIUM'"
+                [class.low-priority]="patient.priority_level === 'LOW'">
+            {{patient.priority_score}}
+          </span>
+        </div>
+        
+        <div class="care-gaps-section">
+          <span class="section-label">Care Gaps:</span>
+          <div class="care-gaps-list">
+            <span class="care-gap-item" *ngFor="let gap of patient.overdue_care_gaps">
+              {{gap.screening_type}}
+            </span>
+          </div>
+        </div>
+      </mat-card-content>
+      
+      <mat-card-actions align="end">
+        <button mat-icon-button matTooltip="View Details" (click)="viewPatient(patient)">
+          <mat-icon>visibility</mat-icon>
+        </button>
+        <button mat-icon-button matTooltip="Contact Patient" (click)="contactPatient(patient)">
+          <mat-icon>mail</mat-icon>
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+
+</div>

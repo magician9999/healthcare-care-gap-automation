@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: healthcare_care_gap_db
+    environment:
+      POSTGRES_DB: healthcare_care_gap
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: user
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - healthcare_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d healthcare_care_gap"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Optional: PostgreSQL Admin Interface
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: healthcare_care_gap_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@healthcare.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - healthcare_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # FastAPI Application (optional - for development)
+  api:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: healthcare_care_gap_api
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/healthcare_care_gap
+      DEBUG: "true"
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    networks:
+      - healthcare_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - full-stack
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  healthcare_network:
+    driver: bridge

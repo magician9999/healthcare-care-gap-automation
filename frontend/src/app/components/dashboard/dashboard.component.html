@@ -1,0 +1,89 @@
+<div class="dashboard-container" *ngIf="!loading">
+  
+  <!-- Dashboard Header -->
+  <div class="dashboard-header">
+    <h2 class="dashboard-title">System Overview</h2>
+    <p class="dashboard-subtitle">Real-time healthcare care-gap automation monitoring</p>
+  </div>
+
+  <!-- Dashboard Cards -->
+  <div class="dashboard-cards">
+    <mat-card class="dashboard-card">
+      <mat-card-content>
+        <div class="card-header">
+          <mat-icon class="card-icon">account_tree</mat-icon>
+        </div>
+        <div class="card-body">
+          <h3 class="card-value">{{dashboardData.activeWorkflows}}</h3>
+          <h4 class="card-title">Active Workflows</h4>
+          <p class="card-subtitle">Currently processing</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="dashboard-card">
+      <mat-card-content>
+        <div class="card-header">
+          <mat-icon class="card-icon">people</mat-icon>
+        </div>
+        <div class="card-body">
+          <h3 class="card-value">{{dashboardData.patientsProcessed}}</h3>
+          <h4 class="card-title">Patients Processed Today</h4>
+          <p class="card-subtitle">Including priority cases</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="dashboard-card">
+      <mat-card-content>
+        <div class="card-header">
+          <mat-icon class="card-icon">warning</mat-icon>
+        </div>
+        <div class="card-body">
+          <h3 class="card-value">{{dashboardData.pendingCareGaps}}</h3>
+          <h4 class="card-title">Pending Care Gaps</h4>
+          <p class="card-subtitle">Requiring attention</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="dashboard-card">
+      <mat-card-content>
+        <div class="card-header">
+          <mat-icon class="card-icon">health_and_safety</mat-icon>
+        </div>
+        <div class="card-body">
+          <h3 class="card-value">{{dashboardData.systemHealth}}</h3>
+          <h4 class="card-title">System Health</h4>
+          <p class="card-subtitle">All agents operational</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="quick-actions">
+    <h3>Quick Actions</h3>
+    <div class="action-buttons">
+      <button mat-raised-button color="primary">
+        <mat-icon>campaign</mat-icon>
+        Start Campaign
+      </button>
+      <button mat-raised-button color="accent">
+        <mat-icon>people</mat-icon>
+        View Patients
+      </button>
+      <button mat-stroked-button>
+        <mat-icon>analytics</mat-icon>
+        View Analytics
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Loading State -->
+<div class="loading-container" *ngIf="loading">
+  <mat-spinner diameter="60"></mat-spinner>
+  <p class="loading-text">Loading dashboard data...</p>
+</div>

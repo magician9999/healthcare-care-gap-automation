@@ -1,0 +1,60 @@
+<div class="navigation-container">
+  <!-- Logo and Title -->
+  <div class="nav-header">
+    <div class="logo-section">
+      <mat-icon class="logo-icon">medical_services</mat-icon>
+      <div class="title-section">
+        <h2 class="app-title">Healthcare AutoGen</h2>
+        <span class="app-subtitle">Care Gap Automation</span>
+      </div>
+    </div>
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <!-- Navigation Menu -->
+  <nav class="nav-menu">
+    <mat-list class="nav-list">
+      <mat-list-item 
+        *ngFor="let item of navigationItems" 
+        class="nav-item"
+        [class.active]="isActive(item.route)"
+        (click)="navigate(item.route)">
+        
+        <mat-icon matListIcon [class.active-icon]="isActive(item.route)">
+          {{item.icon}}
+        </mat-icon>
+        
+        <div matLine class="nav-item-content">
+          <span class="nav-title">{{item.title}}</span>
+        </div>
+        
+        <span matLine class="nav-description">{{item.description}}</span>
+      </mat-list-item>
+    </mat-list>
+  </nav>
+
+  <!-- System Status Section -->
+  <div class="system-status">
+    <mat-divider></mat-divider>
+    <div class="status-header">
+      <mat-icon>health_and_safety</mat-icon>
+      <span>System Status</span>
+    </div>
+    
+    <div class="status-indicators">
+      <div class="status-item">
+        <div class="status-dot online"></div>
+        <span class="status-label">AutoGen Service</span>
+      </div>
+      <div class="status-item">
+        <div class="status-dot online"></div>
+        <span class="status-label">Database</span>
+      </div>
+      <div class="status-item">
+        <div class="status-dot online"></div>
+        <span class="status-label">MCP Server</span>
+      </div>
+    </div>
+  </div>
+</div>

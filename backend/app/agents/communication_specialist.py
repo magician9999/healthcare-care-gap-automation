@@ -176,8 +176,8 @@ class CommunicationSpecialistAgent(BaseHealthcareAgent):
             
             patient = patient_details["patient"]
             
-            # Generate personalized message
-            message_content = self._generate_personalized_message(
+            # Generate personalized message using LLM
+            message_content = await self._generate_llm_personalized_message(
                 patient, priority_level, screening_types, context
             )
             
@@ -201,6 +201,126 @@ class CommunicationSpecialistAgent(BaseHealthcareAgent):
             logger.error(f"Outreach message creation failed: {e}")
             raise
     
+    async def _generate_llm_personalized_message(self, patient: Dict, priority_level: str, 
+                                               screening_types: List[str], context: Dict) -> Dict[str, Any]:
+        """Generate personalized message using LLM for better personalization"""
+        try:
+            # Prepare patient context for LLM
+            patient_context = {
+                "name": patient.get("name", "Patient"),
+                "age": patient.get("age", 0),
+                "screening_type": screening_types[0] if screening_types else "health screening",
+                "overdue_days": context.get("overdue_days", 0),
+                "priority_level": priority_level,
+                "risk_factors": patient.get("risk_factors", ""),
+                "preferred_contact": patient.get("preferred_contact_method", "email"),
+                "last_screening_date": context.get("last_screening_date", "not recorded")
+            }
+
+            # Create LLM prompt for personalized email generation
+            system_prompt = f"""You are a Healthcare Communication Specialist creating personalized patient outreach emails.
+
+Create a professional, empathetic, and personalized email for a patient who needs healthcare screening.
+
+Patient Context:
+- Name: {patient_context['name']}
+- Age: {patient_context['age']}
+- Screening needed: {patient_context['screening_type'].replace('_', ' ').title()}
+- Days overdue: {patient_context['overdue_days']}
+- Priority level: {patient_context['priority_level']}
+- Risk factors: {patient_context['risk_factors'] or 'None listed'}
+- Preferred contact: {patient_context['preferred_contact']}
+- Last screening: {patient_context['last_screening_date']}
+
+Guidelines:
+1. Use a warm, professional tone that's appropriate for the priority level
+2. Be age-appropriate and considerate of any risk factors
+3. Explain why the screening is important for their health
+4. Include urgency appropriate to the priority level
+5. Be encouraging and supportive, not alarming
+6. Keep the message clear and actionable
+
+Priority Level Guidelines:
+- CRITICAL: Urgent but caring, emphasize immediate action needed
+- HIGH: Concerned but reassuring, encourage prompt scheduling
+- MEDIUM: Friendly reminder, emphasize preventive care benefits
+- LOW: Informational, focus on maintaining good health
+
+Return a JSON object with:
+{{
+    "subject": "Email subject line",
+    "greeting": "Personalized greeting",
+    "main_content": "Main email body content (2-3 paragraphs)",
+    "call_to_action": "Clear next steps",
+    "closing": "Professional closing"
+}}"""
+
+            # Use LLM to generate personalized content
+            response = await self.llm_service.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Create a personalized healthcare email for {patient_context['name']} regarding their {patient_context['screening_type']} screening."}
+                ],
+                temperature=0.7,
+                max_tokens=800
+            )
+
+            llm_response = response.choices[0].message.content.strip()
+            
+            # Try to parse JSON response
+            try:
+                import json
+                import re
+                json_match = re.search(r'\{.*\}', llm_response, re.DOTALL)
+                if json_match:
+                    llm_content = json.loads(json_match.group())
+                else:
+                    # Fallback to template-based generation
+                    return self._generate_personalized_message(patient, priority_level, screening_types, context)
+            except:
+                # Fallback to template-based generation
+                return self._generate_personalized_message(patient, priority_level, screening_types, context)
+
+            # Combine LLM-generated content
+            closing_text = llm_content.get('closing', 'Best regards,\nYour Healthcare Team')
+            full_email_body = f"""{llm_content.get('greeting', 'Dear ' + patient_context['name'].split()[0] + ',')}
+
+{llm_content.get('main_content', 'We hope this message finds you well.')}
+
+{llm_content.get('call_to_action', 'Please contact our office to schedule your appointment.')}
+
+{closing_text}"""
+
+            # Create channel-specific versions
+            channel_versions = self._adapt_message_for_channels(
+                llm_content.get('subject', 'Healthcare Appointment Reminder'),
+                full_email_body,
+                patient_context['preferred_contact'],
+                priority_level
+            )
+
+            return {
+                "subject": llm_content.get('subject', 'Healthcare Appointment Reminder'),
+                "body": full_email_body,
+                "tone": "personalized",
+                "priority_level": priority_level,
+                "personalization_elements": {
+                    "name": patient_context['name'].split()[0],
+                    "age": patient_context['age'],
+                    "primary_screening": patient_context['screening_type'],
+                    "overdue_days": patient_context['overdue_days'],
+                    "llm_generated": True
+                },
+                "channel_versions": channel_versions,
+                "estimated_reading_level": self._estimate_reading_level(full_email_body)
+            }
+
+        except Exception as e:
+            logger.error(f"LLM message generation failed: {e}")
+            # Fallback to template-based generation
+            return self._generate_personalized_message(patient, priority_level, screening_types, context)
+
     def _generate_personalized_message(self, patient: Dict, priority_level: str, 
                                      screening_types: List[str], context: Dict) -> Dict[str, Any]:
         """Generate personalized message content"""

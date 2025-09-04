@@ -14,6 +14,8 @@ from ..config.database import SessionLocal
 from ..models.patient import Patient
 from ..models.care_gap import CareGap, CareGapStatus, PriorityLevel
 from ..models.appointment import Appointment, AppointmentStatus
+from ..services.llm_service import HealthcareLLMService
+from ..services.patient_query_service import PatientQueryService
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +233,8 @@ class BaseHealthcareAgent:
         self.role = role
         self.system_message = system_message
         self.mcp_client = MCPToolsClient()
+        self.llm_service = HealthcareLLMService()
+        self.patient_service = PatientQueryService()
         self.conversation_history: List[Dict[str, Any]] = []
         
     async def initialize(self):
@@ -257,6 +261,53 @@ class BaseHealthcareAgent:
         }
         self.conversation_history.append(message)
         
+    async def process_natural_language_query(self, user_prompt: str) -> Dict[str, Any]:
+        """Process natural language healthcare queries using LLM services"""
+        try:
+            # Parse the query using LLM
+            query_analysis = await self.llm_service.parse_screening_request(user_prompt)
+            
+            if not query_analysis.get("screening_tests"):
+                return {
+                    "status": "error",
+                    "message": "Could not understand the requested screening test. Please specify a screening type.",
+                    "query_analysis": query_analysis,
+                    "agent": self.name
+                }
+            
+            # Query patients based on parsed criteria
+            query_results = await self.patient_service.find_patients_by_screening(query_analysis)
+            
+            if query_results["status"] != "success":
+                return {
+                    "status": "error",
+                    "message": f"Database query failed: {query_results.get('message', 'Unknown error')}",
+                    "agent": self.name
+                }
+            
+            # Generate summary using LLM
+            patients = query_results["patients"]
+            summary = await self.llm_service.generate_patient_summary(patients, query_analysis)
+            
+            return {
+                "status": "success",
+                "query_analysis": query_analysis,
+                "patients": patients,
+                "summary": summary,
+                "statistics": query_results.get("statistics"),
+                "total_found": len(patients),
+                "timestamp": query_results["timestamp"],
+                "agent": self.name
+            }
+            
+        except Exception as e:
+            logger.error(f"Natural language query processing failed in {self.name}: {e}")
+            return {
+                "status": "error",
+                "message": f"Query processing failed: {str(e)}",
+                "agent": self.name
+            }
+
     async def process_message(self, message: str, context: Optional[Dict] = None) -> Dict[str, Any]:
         """Process incoming message - to be implemented by subclasses"""
         raise NotImplementedError("Subclasses must implement process_message")

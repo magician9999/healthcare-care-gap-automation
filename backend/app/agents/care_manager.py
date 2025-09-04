@@ -113,7 +113,9 @@ class CareManagerAgent(BaseHealthcareAgent):
         try:
             request_type = self._parse_workflow_request(message)
             
-            if request_type == "start_workflow":
+            if request_type == "book_appointment":
+                result = await self._process_appointment_booking(context or {})
+            elif request_type == "start_workflow":
                 result = await self._start_care_gap_workflow(context or {})
             elif request_type == "monitor_workflow":
                 result = await self._monitor_workflow_progress(context or {})
@@ -146,7 +148,9 @@ class CareManagerAgent(BaseHealthcareAgent):
         """Parse the type of workflow request"""
         message_lower = message.lower()
         
-        if any(keyword in message_lower for keyword in ["start", "begin", "initiate", "run workflow"]):
+        if any(keyword in message_lower for keyword in ["book", "appointment", "scheduled", "slot"]):
+            return "book_appointment"
+        elif any(keyword in message_lower for keyword in ["start", "begin", "initiate", "run workflow"]):
             return "start_workflow"
         elif any(keyword in message_lower for keyword in ["monitor", "status", "progress", "check"]):
             return "monitor_workflow"
@@ -259,6 +263,129 @@ class CareManagerAgent(BaseHealthcareAgent):
             if 'workflow_id' in locals():
                 return self._handle_workflow_failure(workflow_id, "Workflow startup failed", {"error": str(e)})
             raise
+    
+    async def _process_appointment_booking(self, context: Dict) -> Dict[str, Any]:
+        """Process appointment booking and close care gap using email lookup"""
+        try:
+            patient_email = context.get("patient_email")
+            screening_type = context.get("screening_type")
+            appointment_date = context.get("appointment_date")
+            notes = context.get("notes", "Appointment booked via smart campaign")
+            care_gap_id = context.get("care_gap_id")
+            
+            if not all([patient_email, screening_type]):
+                return {
+                    "status": "error",
+                    "message": "Missing required information: patient_email or screening_type",
+                    "agent": self.name,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            
+            logger.info(f"Processing appointment booking for patient email {patient_email}, screening {screening_type}")
+            
+            # Step 1: Find patient by email using patient service
+            patient_search_result = await self.patient_service.search_patients_by_name_or_email(patient_email)
+            if patient_search_result.get("status") != "success" or not patient_search_result.get("patients"):
+                return {
+                    "status": "error",
+                    "message": f"Patient with email {patient_email} not found",
+                    "agent": self.name,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            
+            # Get the first matching patient
+            patient_data = patient_search_result["patients"][0]
+            patient_id = patient_data["id"]
+            
+            logger.info(f"Found patient {patient_data.get('name')} with ID {patient_id}")
+            
+            # Step 2: Get patient details to find care gaps
+            patient_details = await self.patient_service.get_patient_details_with_care_gaps(patient_id)
+            if patient_details.get("status") != "success":
+                return {
+                    "status": "error",
+                    "message": f"Could not retrieve patient details for {patient_email}",
+                    "agent": self.name,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            
+            # Step 3: Find the specific care gap for the screening type
+            patient_details_data = patient_details.get("patient", {})
+            care_gaps = patient_details_data.get("care_gaps", [])
+            
+            target_care_gap = None
+            for gap in care_gaps:
+                # Match by screening type and open status
+                if (gap.get("screening_type") == screening_type and 
+                    gap.get("status") == "open"):
+                    target_care_gap = gap
+                    care_gap_id = gap.get("id")  # Use the actual care gap ID from database
+                    break
+            
+            if not target_care_gap:
+                return {
+                    "status": "error",
+                    "message": f"No open care gap found for {screening_type} screening for patient {patient_email}",
+                    "agent": self.name,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            
+            # Step 3: Close the care gap using MCP client
+            completion_date = appointment_date or datetime.utcnow().date().isoformat()
+            close_result = await self.mcp_client.close_care_gap(
+                care_gap_id=care_gap_id,
+                completion_date=completion_date,
+                notes=f"Care gap closed due to appointment booking. {notes}"
+            )
+            
+            if close_result.get("status") == "success":
+                # Step 4: Log the successful booking and closure
+                booking_details = {
+                    "patient_id": patient_id,
+                    "patient_email": patient_email,
+                    "patient_name": patient_details_data.get("name"),
+                    "care_gap_id": care_gap_id,
+                    "screening_type": screening_type,
+                    "appointment_date": appointment_date,
+                    "care_gap_closed_at": datetime.utcnow().isoformat(),
+                    "booking_reference": f"BOOK_{patient_email}_{care_gap_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+                    "previous_overdue_days": target_care_gap.get("overdue_days", 0),
+                    "priority_level": target_care_gap.get("priority_level", "medium")
+                }
+                
+                return {
+                    "status": "success",
+                    "message": f"Appointment booked successfully for {patient_details_data.get('name')} ({patient_email}) - {screening_type} screening",
+                    "booking_details": booking_details,
+                    "care_gap_closure": close_result,
+                    "agent": self.name,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "actions_completed": [
+                        f"Found patient by email: {patient_email}",
+                        f"Located care gap for {screening_type}",
+                        "Appointment booking processed", 
+                        "Care gap marked as closed",
+                        "Database updated successfully"
+                    ]
+                }
+            else:
+                return {
+                    "status": "error", 
+                    "message": f"Failed to close care gap: {close_result.get('message', 'Unknown error')}",
+                    "care_gap_closure_error": close_result,
+                    "agent": self.name,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                
+        except Exception as e:
+            logger.error(f"Appointment booking processing failed: {e}")
+            return {
+                "status": "error",
+                "message": f"Appointment booking failed: {str(e)}",
+                "agent": self.name,
+                "timestamp": datetime.utcnow().isoformat(),
+                "error_details": str(e)
+            }
     
     async def _execute_workflow_step(self, workflow_id: str, step: WorkflowStep, 
                                    step_function, step_context: Dict) -> Dict[str, Any]:

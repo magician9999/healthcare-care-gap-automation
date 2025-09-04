@@ -41,6 +41,12 @@ class AgentDirectRequest(BaseModel):
     context: Dict[str, Any] = Field(default_factory=dict)
 
 
+class NaturalLanguageQueryRequest(BaseModel):
+    prompt: str = Field(..., description="Natural language prompt for healthcare queries")
+    agent_type: str = Field("data_analyst", pattern="^(data_analyst|communication_specialist|care_manager)$")
+    max_results: Optional[int] = Field(100, ge=1, le=500)
+
+
 class WorkflowStatusResponse(BaseModel):
     status: str
     workflow_id: Optional[str] = None
@@ -319,6 +325,55 @@ async def direct_agent_communication(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/agents/query")
+async def natural_language_query(
+    request: NaturalLanguageQueryRequest
+):
+    """Process natural language healthcare queries using intelligent agents"""
+    try:
+        # Import agents here to avoid circular imports
+        from ...agents.data_analyst import DataAnalystAgent
+        from ...agents.communication_specialist import CommunicationSpecialistAgent
+        from ...agents.care_manager import CareManagerAgent
+        
+        # Select agent based on request
+        agent_map = {
+            "data_analyst": DataAnalystAgent,
+            "communication_specialist": CommunicationSpecialistAgent, 
+            "care_manager": CareManagerAgent
+        }
+        
+        agent_class = agent_map.get(request.agent_type)
+        if not agent_class:
+            raise HTTPException(status_code=400, detail=f"Invalid agent type: {request.agent_type}")
+        
+        # Initialize and process query
+        agent = agent_class()
+        await agent.initialize()
+        
+        try:
+            # Process the natural language query
+            result = await agent.process_message(request.prompt, {"max_results": request.max_results})
+            
+            return {
+                "status": "success",
+                "agent_type": request.agent_type,
+                "query": request.prompt,
+                "result": result,
+                "timestamp": result.get("timestamp")
+            }
+            
+        finally:
+            # Clean up agent resources
+            await agent.cleanup()
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Natural language query failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Query processing failed: {str(e)}")
+
+
 @router.post("/agents/analyze")
 async def analyze_patients(
     filters: PatientFilters,
@@ -362,6 +417,22 @@ async def analyze_patients(
 class PatientCommunicationRequest(BaseModel):
     patient_ids: List[int]
     priority_level: str = Field("medium", pattern="^(low|medium|high|critical)$")
+
+
+class BookingSlotRequest(BaseModel):
+    patient_id: int = Field(default=0, description="Patient ID for whom to book the appointment (optional)")
+    care_gap_id: int = Field(default=1, description="Care gap ID to be resolved") 
+    screening_type: str = Field(..., description="Type of screening to book")
+    appointment_date: Optional[str] = Field(None, description="Preferred appointment date (ISO format)")
+    notes: Optional[str] = Field(None, description="Additional notes for the booking")
+    patient_email: Optional[str] = Field(None, description="Patient email for identification")
+
+
+class BookingSlotResponse(BaseModel):
+    status: str
+    message: str
+    appointment_details: Optional[Dict[str, Any]] = None
+    care_gap_status: Optional[str] = None
 
 @router.post("/agents/communicate")
 async def create_patient_communications(
@@ -425,3 +496,118 @@ def _extract_communications_count(execution_result: Dict) -> int:
         return 0
     except:
         return 0
+
+
+@router.post("/agents/book-slot", response_model=BookingSlotResponse)
+async def book_appointment_slot(
+    request: BookingSlotRequest,
+    service: AutoGenWorkflowService = Depends(get_workflow_service)
+):
+    """
+    Book appointment slot and close care gap using CareManagerAgent with LLM understanding
+    """
+    try:
+        # Import CareManagerAgent here to avoid circular imports
+        from ...agents.care_manager import CareManagerAgent
+        
+        # Initialize CareManager agent
+        care_manager = CareManagerAgent()
+        await care_manager.initialize()
+        
+        try:
+            # Extract email from notes if not provided directly
+            patient_email = request.patient_email
+            if not patient_email and request.notes:
+                # Extract email from notes using regex
+                import re
+                email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', request.notes)
+                if email_match:
+                    patient_email = email_match.group()
+            
+            # Prepare context for CareManagerAgent with LLM-friendly message
+            booking_context = {
+                "patient_id": request.patient_id,
+                "care_gap_id": request.care_gap_id, 
+                "screening_type": request.screening_type,
+                "appointment_date": request.appointment_date,
+                "notes": request.notes,
+                "patient_email": patient_email,
+                "action": "book_appointment_and_close_care_gap"
+            }
+            
+            # Create natural language message for the agent to understand
+            natural_message = f"""
+            Patient has booked an appointment slot for {request.screening_type} screening.
+            Patient email: {patient_email}
+            Please find this patient by email and close their care gap for {request.screening_type}.
+            The screening appointment has been scheduled and the care gap should be marked as resolved.
+            """
+            
+            # Process the booking request through CareManagerAgent
+            result = await care_manager.process_message(natural_message, booking_context)
+            
+            if result.get("status") == "success":
+                return BookingSlotResponse(
+                    status="success",
+                    message=f"Appointment booked successfully and care gap closed for {request.screening_type} screening",
+                    appointment_details={
+                        "patient_id": request.patient_id,
+                        "screening_type": request.screening_type,
+                        "appointment_date": request.appointment_date or "To be scheduled",
+                        "booking_reference": f"BOOK_{request.patient_id}_{request.care_gap_id}",
+                        "status": "confirmed"
+                    },
+                    care_gap_status="closed"
+                )
+            else:
+                return BookingSlotResponse(
+                    status="error", 
+                    message=result.get("message", "Booking failed"),
+                    care_gap_status="open"
+                )
+                
+        finally:
+            # Clean up agent resources
+            await care_manager.cleanup()
+    
+    except Exception as e:
+        logger.error(f"Appointment booking failed: {e}")
+        return BookingSlotResponse(
+            status="error",
+            message=f"Booking failed: {str(e)}",
+            care_gap_status="open"
+        )
+
+
+@router.post("/agents/reject-slot")
+async def reject_appointment_slot(
+    request: Dict[str, Any]
+):
+    """
+    Reject appointment slot - no database modifications
+    """
+    try:
+        patient_id = request.get("patient_id")
+        care_gap_id = request.get("care_gap_id")
+        screening_type = request.get("screening_type")
+        rejection_reason = request.get("reason", "Patient declined appointment")
+        
+        logger.info(f"Appointment rejected for patient {patient_id}, care gap {care_gap_id}: {rejection_reason}")
+        
+        return {
+            "status": "success",
+            "message": f"Appointment slot rejected for {screening_type} screening",
+            "patient_id": patient_id,
+            "care_gap_id": care_gap_id,
+            "action_taken": "none",
+            "care_gap_status": "open",
+            "rejection_reason": rejection_reason,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Appointment rejection processing failed: {e}")
+        return {
+            "status": "error",
+            "message": f"Failed to process rejection: {str(e)}"
+        }

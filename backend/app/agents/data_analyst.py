@@ -68,11 +68,49 @@ class DataAnalystAgent(BaseHealthcareAgent):
         }
     
     async def process_message(self, message: str, context: Optional[Dict] = None) -> Dict[str, Any]:
-        """Process data analysis requests"""
+        """Process data analysis requests with natural language understanding"""
         self.add_to_conversation("user", message, context)
         
         try:
-            # Parse the request
+            # First try to process as natural language healthcare query
+            if self._is_healthcare_query(message):
+                logger.info(f"Processing as natural language healthcare query: {message}")
+                result = await self.process_natural_language_query(message)
+                
+                if result["status"] == "success":
+                    # Enhance with priority analysis
+                    patients = result["patients"]
+                    enhanced_patients = []
+                    
+                    for patient in patients:
+                        priority_score = self._calculate_patient_priority_score({
+                            "age": patient.get("age", 0),
+                            "overdue_care_gaps": [{
+                                "screening_type": patient.get("screening_type", ""),
+                                "overdue_days": patient.get("overdue_days", 0),
+                                "priority_level": patient.get("priority_level", "medium")
+                            }],
+                            "risk_factors": patient.get("risk_factors", "")
+                        })
+                        
+                        enhanced_patient = {
+                            **patient,
+                            "priority_score": priority_score["total_score"],
+                            "clinical_reasoning": priority_score["reasoning"],
+                            "recommended_actions": priority_score["recommended_actions"]
+                        }
+                        enhanced_patients.append(enhanced_patient)
+                    
+                    # Sort by priority score
+                    enhanced_patients.sort(key=lambda x: x["priority_score"], reverse=True)
+                    
+                    result["patients"] = enhanced_patients
+                    result["agent_analysis"] = "Enhanced with clinical priority scoring"
+                    
+                self.add_to_conversation("assistant", json.dumps(result), {"query_type": "natural_language"})
+                return result
+            
+            # Traditional analysis request
             request_type = self._parse_request_type(message)
             
             if request_type == "prioritize_overdue_patients":
@@ -97,6 +135,36 @@ class DataAnalystAgent(BaseHealthcareAgent):
             }
             self.add_to_conversation("assistant", json.dumps(error_result), {"error": True})
             return error_result
+    
+    def _is_healthcare_query(self, message: str) -> bool:
+        """Determine if message is a natural language healthcare query"""
+        message_lower = message.lower()
+        
+        # Healthcare screening keywords
+        healthcare_keywords = [
+            "mammogram", "mammography", "breast cancer", "breast screening",
+            "colonoscopy", "colon cancer", "colorectal screening",
+            "pap smear", "pap test", "cervical cancer",
+            "blood pressure", "bp check", "hypertension",
+            "cholesterol", "lipid panel", "lipid screening",
+            "diabetes", "blood sugar", "glucose", "a1c",
+            "bone density", "dexa scan", "osteoporosis",
+            "eye exam", "vision test", "ophthalmology",
+            "skin cancer", "dermatology", "mole check",
+            "prostate", "psa test",
+            "screening", "test", "checkup", "exam"
+        ]
+        
+        # Patient query patterns
+        query_patterns = [
+            "show me", "find", "list", "who need", "patients with",
+            "overdue", "pending", "due for", "need"
+        ]
+        
+        has_healthcare_term = any(keyword in message_lower for keyword in healthcare_keywords)
+        has_query_pattern = any(pattern in message_lower for pattern in query_patterns)
+        
+        return has_healthcare_term and has_query_pattern
     
     def _parse_request_type(self, message: str) -> str:
         """Parse the type of analysis request"""

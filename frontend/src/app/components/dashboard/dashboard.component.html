@@ -7,34 +7,7 @@
   </div>
 
   <!-- Real-time Agent Status -->
-  <div class="agent-status-section" *ngIf="agentStatuses.length > 0">
-    <h3>Agent Status</h3>
-    <div class="agent-cards">
-      <mat-card class="agent-card" *ngFor="let agent of agentStatuses" [class]="getAgentStatusClass(agent)">
-        <mat-card-content>
-          <div class="agent-header">
-            <h4>{{agent.agent_name}}</h4>
-            <span class="status-badge" [class]="'status-' + agent.status">{{agent.status | titlecase}}</span>
-          </div>
-          <p class="current-task" *ngIf="agent.current_task">{{agent.current_task}}</p>
-          <div class="agent-metrics" *ngIf="agent.metrics">
-            <div class="metric">
-              <span class="label">Tasks Completed:</span>
-              <span class="value">{{agent.metrics.tasks_completed}}</span>
-            </div>
-            <div class="metric">
-              <span class="label">Avg Response:</span>
-              <span class="value">{{agent.metrics.average_response_time | number:'1.1-1'}}s</span>
-            </div>
-            <div class="metric">
-              <span class="label">Success Rate:</span>
-              <span class="value">{{agent.metrics.success_rate | number:'1.0-0'}}%</span>
-            </div>
-          </div>
-        </mat-card-content>
-      </mat-card>
-    </div>
-  </div>
+  
 
   <!-- Dashboard Cards -->
   <div class="dashboard-cards">
@@ -94,8 +67,8 @@
   <!-- Priority Statistics -->
   <div class="priority-section">
     <h3>Priority Care Gaps</h3>
-    <div class="priority-cards">
-      <mat-card class="priority-card urgent">
+    <div class="priority-cards" style="display:flex;justify-content:space-between">
+      <mat-card class="priority-card urgent" >
         <mat-card-content>
           <div class="priority-header">
             <mat-icon>priority_high</mat-icon>
@@ -150,6 +123,395 @@
     </div>
   </div>
 
+  <!-- Natural Language Query Section -->
+  <div class="natural-query-section">
+    <h3>Ask About Patient Care Gaps</h3>
+    <p class="section-subtitle">Use natural language to query patient data and care gaps</p>
+    
+    <!-- Query Input -->
+    <div class="query-input-section">
+      <mat-form-field appearance="outline" class="query-input">
+        <mat-label>Enter your healthcare query...</mat-label>
+        <input matInput [formControl]="queryControl" 
+               placeholder="e.g., 'Show me diabetic patients below age 35'" 
+               (keyup.enter)="processQuery()">
+        <mat-error *ngIf="queryControl.hasError('required')">Query is required</mat-error>
+        <mat-error *ngIf="queryControl.hasError('minlength')">Query must be at least 3 characters</mat-error>
+      </mat-form-field>
+      
+      <div class="query-actions">
+        <button mat-raised-button color="primary" 
+                [disabled]="queryControl.invalid || queryLoading" 
+                (click)="processQuery()">
+          <mat-icon *ngIf="!queryLoading">search</mat-icon>
+          <mat-spinner *ngIf="queryLoading" diameter="20"></mat-spinner>
+          {{ queryLoading ? 'Processing...' : 'Search' }}
+        </button>
+        <button mat-stroked-button (click)="clearResults()" *ngIf="showResults">
+          <mat-icon>clear</mat-icon>
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <!-- Example Prompts -->
+    <!-- <div class="example-prompts" *ngIf="!showResults">
+      <p class="examples-label">Try these examples:</p>
+      <div class="example-chips">
+        <mat-chip *ngFor="let example of examplePrompts" 
+                  (click)="useExamplePrompt(example)" 
+                  class="example-chip">
+          {{ example }}
+        </mat-chip>
+      </div>
+    </div> -->
+
+    <!-- Query Error -->
+    <mat-card class="error-card" *ngIf="queryError">
+      <mat-card-content>
+        <div class="error-content">
+          <mat-icon color="warn">error</mat-icon>
+          <span>{{ queryError }}</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Query Results -->
+    <div id="query-results" class="query-results" *ngIf="showResults && !queryError">
+      
+      <!-- Summary Section -->
+      <mat-card class="summary-card" *ngIf="querySummary">
+        <mat-card-content>
+          <div class="summary-header">
+            <mat-icon>insights</mat-icon>
+            <h4>AI Analysis Summary</h4>
+          </div>
+          <p class="summary-text">{{ querySummary }}</p>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Statistics Section -->
+      <div class="results-statistics" *ngIf="queryStatistics">
+        <div class="stat-cards">
+          <mat-card class="stat-card">
+            <mat-card-content>
+              <div class="stat-value">{{ queryStatistics.total_patients || 0 }}</div>
+              <div class="stat-label">Patients Found</div>
+            </mat-card-content>
+          </mat-card>
+          
+          <mat-card class="stat-card urgent" *ngIf="queryStatistics.priority_distribution?.urgent">
+            <mat-card-content>
+              <div class="stat-value">{{ queryStatistics.priority_distribution.urgent }}</div>
+              <div class="stat-label">Urgent Cases</div>
+            </mat-card-content>
+          </mat-card>
+          
+          <mat-card class="stat-card" *ngIf="queryStatistics.average_overdue_days">
+            <mat-card-content>
+              <div class="stat-value">{{ queryStatistics.average_overdue_days | number:'1.0-0' }}</div>
+              <div class="stat-label">Avg Overdue Days</div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </div>
+
+      <!-- Results Table -->
+      <mat-card class="results-table-card" *ngIf="queryResults.length > 0">
+        <mat-card-header>
+          <mat-card-title>
+            <div class="table-header">
+              <h4>Patient Results ({{ queryResults.length }})</h4>
+              <div class="table-actions">
+                <button mat-raised-button color="accent" 
+                        [disabled]="campaignLoading" 
+                        (click)="startSmartCampaign()">
+                  <mat-icon *ngIf="!campaignLoading">campaign</mat-icon>
+                  <mat-spinner *ngIf="campaignLoading" diameter="20"></mat-spinner>
+                  {{ campaignLoading ? 'Creating Campaign...' : 'Start Smart Campaign' }}
+                </button>
+                <button mat-stroked-button (click)="exportResults()">
+                  <mat-icon>download</mat-icon>
+                  Export CSV
+                </button>
+              </div>
+            </div>
+          </mat-card-title>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <div class="table-container">
+            <table mat-table [dataSource]="queryResults" class="results-table">
+              
+              <!-- Name Column -->
+              <ng-container matColumnDef="name">
+                <th mat-header-cell *matHeaderCellDef>Name</th>
+                <td mat-cell *matCellDef="let patient">{{ patient.name }}</td>
+              </ng-container>
+
+              <!-- Contact Email Column -->
+              <ng-container matColumnDef="email">
+                <th mat-header-cell *matHeaderCellDef>Contact Email</th>
+                <td mat-cell *matCellDef="let patient">
+                  <a [href]="'mailto:' + patient.email">{{ patient.email }}</a>
+                </td>
+              </ng-container>
+
+              <!-- Phone Column -->
+              <ng-container matColumnDef="phone">
+                <th mat-header-cell *matHeaderCellDef>Phone</th>
+                <td mat-cell *matCellDef="let patient">{{ patient.phone || 'N/A' }}</td>
+              </ng-container>
+
+              <!-- Age Column -->
+              <ng-container matColumnDef="age">
+                <th mat-header-cell *matHeaderCellDef>Age</th>
+                <td mat-cell *matCellDef="let patient">{{ patient.age }}</td>
+              </ng-container>
+
+              <!-- Screening Type Column -->
+              <ng-container matColumnDef="screening_type">
+                <th mat-header-cell *matHeaderCellDef>Screening Type</th>
+                <td mat-cell *matCellDef="let patient">
+                  <span class="screening-type">{{ formatScreeningType(patient.screening_type) }}</span>
+                </td>
+              </ng-container>
+
+              <!-- Last Screen Date Column -->
+              <ng-container matColumnDef="last_screening_date">
+                <th mat-header-cell *matHeaderCellDef>Last Screen Date</th>
+                <td mat-cell *matCellDef="let patient">
+                  {{ patient.last_screening_date | date:'mediumDate' || 'Never' }}
+                </td>
+              </ng-container>
+
+              <!-- Overdue Days Column -->
+              <ng-container matColumnDef="overdue_days">
+                <th mat-header-cell *matHeaderCellDef>Overdue Days</th>
+                <td mat-cell *matCellDef="let patient">
+                  <span class="overdue-days" [class.overdue]="patient.overdue_days > 0">
+                    {{ formatOverdueDays(patient.overdue_days) }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <!-- Priority Level Column -->
+              <ng-container matColumnDef="priority_level">
+                <th mat-header-cell *matHeaderCellDef>Priority</th>
+                <td mat-cell *matCellDef="let patient">
+                  <span class="priority-badge" [class]="getPriorityClass(patient.priority_level)">
+                    {{ patient.priority_level | titlecase }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="['name', 'email', 'phone', 'age', 'screening_type', 'last_screening_date', 'overdue_days', 'priority_level']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['name', 'email', 'phone', 'age', 'screening_type', 'last_screening_date', 'overdue_days', 'priority_level'];" 
+                  class="patient-row"></tr>
+            </table>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- No Results Message -->
+      <mat-card class="no-results-card" *ngIf="queryResults.length === 0 && !queryLoading">
+        <mat-card-content>
+          <div class="no-results-content">
+            <mat-icon>search_off</mat-icon>
+            <h4>No patients found</h4>
+            <p>Try adjusting your query or use one of the example prompts above.</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+    </div>
+  </div>
+
+  <!-- Smart Campaign Results -->
+  <div id="campaign-results" class="campaign-results" *ngIf="showCampaignResults">
+    
+    <!-- Campaign Error -->
+    <mat-card class="error-card" *ngIf="campaignError">
+      <mat-card-content>
+        <div class="error-content">
+          <mat-icon color="warn">error</mat-icon>
+          <span>{{ campaignError }}</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Campaign Success Results -->
+    <div *ngIf="campaignResults && !campaignError">
+      
+      <!-- Campaign Summary -->
+      <mat-card class="campaign-summary-card">
+        <mat-card-header>
+          <mat-card-title>
+            <div class="campaign-header">
+              <mat-icon [class]="getCampaignStatusClass(campaignResults.status)">campaign</mat-icon>
+              <h3>{{ campaignResults.is_test ? 'Test Email Sent Successfully' : 'Smart Campaign Created' }}</h3>
+              <button mat-icon-button (click)="clearCampaignResults()">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          </mat-card-title>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <div class="campaign-summary">
+            
+            <!-- Test Email Results -->
+            <div *ngIf="campaignResults.is_test" class="test-email-results">
+              <div class="test-info">
+                <p><strong>Recipient:</strong> {{ campaignResults.recipient }}</p>
+                <p><strong>Status:</strong> <span class="success-text">{{ campaignResults.message }}</span></p>
+              </div>
+              
+              <div class="email-preview" *ngIf="campaignResults.generated_message">
+                <h4>Email Preview:</h4>
+                <div class="preview-content">
+                  <p><strong>Subject:</strong> {{ campaignResults.generated_message.subject }}</p>
+                  <div class="preview-body">{{ campaignResults.generated_message.preview }}</div>
+                  <p><strong>Booking Link:</strong> 
+                    <a [href]="campaignResults.generated_message.booking_link" target="_blank">
+                      {{ campaignResults.generated_message.booking_link }}
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Campaign Results -->
+            <div *ngIf="!campaignResults.is_test" class="campaign-stats">
+              <div class="stat-row">
+                <div class="stat-item">
+                  <span class="stat-label">Campaign ID:</span>
+                  <span class="stat-value">{{ campaignResults.campaign_id }}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Total Patients:</span>
+                  <span class="stat-value">{{ campaignResults.total_patients }}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Messages Generated:</span>
+                  <span class="stat-value">{{ campaignResults.messages_generated }}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Messages Sent:</span>
+                  <span class="stat-value success-text">{{ campaignResults.messages_sent }}</span>
+                </div>
+              </div>
+              
+              <!-- Message Previews -->
+              <div class="message-previews" *ngIf="campaignResults.preview_messages?.length">
+                <h4>Message Previews (First 5 patients):</h4>
+                <div class="preview-grid">
+                  <mat-card *ngFor="let preview of campaignResults.preview_messages" class="preview-card">
+                    <mat-card-content>
+                      <div class="preview-header">
+                        <span class="patient-name">{{ preview.patient_name }}</span>
+                        <span class="priority-badge" [class]="getPriorityClass(preview.priority_level)">
+                          {{ preview.priority_level }}
+                        </span>
+                      </div>
+                      <div class="preview-subject">
+                        <strong>Subject:</strong> {{ preview.subject }}
+                      </div>
+                      <div class="preview-content">
+                        {{ preview.preview }}
+                      </div>
+                      <div class="preview-screening">
+                        <strong>Screening:</strong> {{ formatScreeningType(preview.screening_type) }}
+                      </div>
+                      
+                      <!-- Booking Action Buttons -->
+                      <div class="booking-actions">
+                        <div class="debug-info" style="font-size: 10px; color: #666; margin-bottom: 8px;">
+                          Debug: ID={{preview.patient_id}}, Care Gap={{preview.care_gap_id}}, Type={{preview.screening_type}}
+                        </div>
+                        <button mat-raised-button 
+                                color="primary" 
+                                class="booking-btn"
+                                [disabled]="isBookingDisabled(preview)"
+                                (click)="bookAppointmentSlot(preview)">
+                          <mat-icon *ngIf="getBookingStatus(preview) === 'booking'">hourglass_empty</mat-icon>
+                          <mat-icon *ngIf="getBookingStatus(preview) === 'booked'">check_circle</mat-icon>
+                          <mat-icon *ngIf="getBookingStatus(preview) === 'pending'">event</mat-icon>
+                          {{ getBookingButtonText(preview) }}
+                        </button>
+                        
+                        <button mat-raised-button 
+                                color="warn" 
+                                class="reject-btn"
+                                [disabled]="isBookingDisabled(preview)"
+                                (click)="rejectAppointmentSlot(preview)">
+                          <mat-icon *ngIf="getBookingStatus(preview) === 'rejecting'">hourglass_empty</mat-icon>
+                          <mat-icon *ngIf="getBookingStatus(preview) === 'rejected'">cancel</mat-icon>
+                          <mat-icon *ngIf="getBookingStatus(preview) === 'pending'">close</mat-icon>
+                          {{ getRejectButtonText(preview) }}
+                        </button>
+                      </div>
+                      
+                    </mat-card-content>
+                  </mat-card>
+                </div>
+              </div>
+
+              <!-- Campaign Summary -->
+              <div class="campaign-details" *ngIf="campaignResults.summary">
+                <h4>Campaign Details:</h4>
+                <div class="details-grid">
+                  <div class="detail-item">
+                    <span class="detail-label">Campaign Name:</span>
+                    <span class="detail-value">{{ campaignResults.summary.campaign_name }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Created:</span>
+                    <span class="detail-value">{{ campaignResults.summary.created_at | date:'medium' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Estimated Duration:</span>
+                    <span class="detail-value">{{ campaignResults.summary.estimated_send_duration }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Includes SMS:</span>
+                    <span class="detail-value">{{ campaignResults.summary.includes_sms ? 'Yes' : 'No' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Booking Links:</span>
+                    <span class="detail-value">{{ campaignResults.summary.includes_booking_links ? 'Included' : 'Not included' }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+
+  <!-- Test Email Section -->
+  <div class="test-section" *ngIf="queryResults.length === 0 && !loading">
+    <mat-card class="test-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>email</mat-icon>
+          Test Smart Campaign
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <p>Try the smart campaign feature by sending a test email to Shivanshu Saxena with personalized content generated by our AI.</p>
+        <button mat-raised-button color="primary" 
+                [disabled]="campaignLoading" 
+                (click)="sendTestEmail()">
+          <mat-icon *ngIf="!campaignLoading">send</mat-icon>
+          <mat-spinner *ngIf="campaignLoading" diameter="20"></mat-spinner>
+          {{ campaignLoading ? 'Sending Test Email...' : 'Send Test Email' }}
+        </button>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
   <!-- System Health Details -->
   <div class="system-health" *ngIf="systemHealth">
     <h3>System Health Details</h3>
@@ -178,6 +540,35 @@
   </div>
 
 </div>
+
+<div class="agent-status-section" *ngIf="agentStatuses.length > 0">
+    <h3>Agent Status</h3>
+    <div class="agent-cards">
+      <mat-card class="agent-card" *ngFor="let agent of agentStatuses" [class]="getAgentStatusClass(agent)">
+        <mat-card-content>
+          <div class="agent-header">
+            <h4>{{agent.agent_name}}</h4>
+            <span class="status-badge" [class]="'status-' + agent.status">{{agent.status | titlecase}}</span>
+          </div>
+          <p class="current-task" *ngIf="agent.current_task">{{agent.current_task}}</p>
+          <div class="agent-metrics" *ngIf="agent.metrics">
+            <div class="metric">
+              <span class="label">Tasks Completed:</span>
+              <span class="value">{{agent.metrics.tasks_completed}}</span>
+            </div>
+            <div class="metric">
+              <span class="label">Avg Response:</span>
+              <span class="value">{{agent.metrics.average_response_time | number:'1.1-1'}}s</span>
+            </div>
+            <div class="metric">
+              <span class="label">Success Rate:</span>
+              <span class="value">{{agent.metrics.success_rate | number:'1.0-0'}}%</span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
 
 <!-- Loading State -->
 <div class="loading-container" *ngIf="loading">

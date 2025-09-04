@@ -198,6 +198,70 @@ export class ApiService {
     });
   }
 
+  /**
+   * Process natural language query using intelligent agents
+   */
+  processNaturalLanguageQuery(prompt: string, agentType: string = 'data_analyst', maxResults: number = 100): Observable<any> {
+    const request = {
+      prompt: prompt,
+      agent_type: agentType,
+      max_results: maxResults
+    };
+    return this.http.post(`${this.baseUrl}/agents/agents/query`, request);
+  }
+
+  /**
+   * Process healthcare query using LLM service (alternative endpoint)
+   */
+  processHealthcareQuery(prompt: string, includeSummary: boolean = true, maxResults: number = 100): Observable<any> {
+    const request = {
+      prompt: prompt,
+      include_summary: includeSummary,
+      max_results: maxResults
+    };
+    return this.http.post(`${this.baseUrl}/llm/query`, request);
+  }
+
+  /**
+   * Start a smart healthcare campaign with personalized messaging
+   */
+  startSmartCampaign(patients: any[], campaignName: string, customization: any = {}): Observable<any> {
+    const request = {
+      patients: patients,
+      campaign_name: campaignName,
+      message_customization: customization,
+      send_immediately: true,
+      include_sms: true,
+      include_booking_link: true
+    };
+    return this.http.post(`${this.baseUrl}/campaigns/start-smart-campaign`, request);
+  }
+
+  /**
+   * Send test email to Shivanshu Saxena
+   */
+  sendTestEmail(): Observable<any> {
+    return this.http.post(`${this.baseUrl}/campaigns/send-test-email`, {});
+  }
+
+  /**
+   * Get campaign status
+   */
+  getCampaignStatus(campaignId: string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/campaigns/campaign/${campaignId}`);
+  }
+
+  /**
+   * Get available booking slots
+   */
+  getBookingSlots(screeningType: string = 'general', patientId?: number): Observable<any> {
+    let params = `screening_type=${screeningType}`;
+    if (patientId) {
+      params += `&patient_id=${patientId}`;
+    }
+    return this.http.get(`${this.baseUrl}/campaigns/booking-slots?${params}`);
+  }
+
   // ==================== SYSTEM HEALTH ENDPOINTS ====================
 
   /**
@@ -373,6 +437,34 @@ export class ApiService {
       map(() => true),
       catchError(() => of(false))
     );
+  }
+
+  /**
+   * Book appointment slot and close care gap using CareManagerAgent
+   */
+  bookAppointmentSlot(patientId: number, careGapId: number, screeningType: string, appointmentDate?: string, notes?: string, patientEmail?: string): Observable<any> {
+    const request = {
+      patient_id: patientId,
+      care_gap_id: careGapId,
+      screening_type: screeningType,
+      appointment_date: appointmentDate,
+      notes: notes,
+      patient_email: patientEmail
+    };
+    return this.http.post(`${this.baseUrl}/agents/book-slot`, request);
+  }
+
+  /**
+   * Reject appointment slot - no database changes
+   */
+  rejectAppointmentSlot(patientId: number, careGapId: number, screeningType: string, reason?: string): Observable<any> {
+    const request = {
+      patient_id: patientId,
+      care_gap_id: careGapId,
+      screening_type: screeningType,
+      reason: reason || 'Patient declined appointment'
+    };
+    return this.http.post(`${this.baseUrl}/agents/reject-slot`, request);
   }
 
   // ==================== BACKWARD COMPATIBILITY METHODS ====================

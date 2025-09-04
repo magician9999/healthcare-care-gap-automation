@@ -157,3 +157,8 @@
 ::ng-deep .mat-divider {
   border-color: rgba(255, 255, 255, 0.1);
 }
+
+mat-list-item.mat-mdc-list-item{
+  height: 77px;
+  margin: 20px;
+}

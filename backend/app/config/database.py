@@ -7,7 +7,7 @@ from ..models.base import Base
 # Database configuration from environment variables
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:user@localhost:5433/healthcare_care_gap"
+    "postgresql://postgres:postgres@localhost:5432/healthcare_care_gap"
 )
 
 # Create engine
